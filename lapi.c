@@ -533,6 +533,7 @@ LUA_API const char *lua_pushfstring (lua_State *L, const char *fmt, ...) {
 // add common in windows.
 // another common in windows.
 // add a common in  mbp.
+// test in mbp.
 LUA_API void lua_pushcclosure (lua_State *L, lua_CFunction fn, int n) {
   lua_lock(L);
   if (n == 0) {  // 对于轻量 C 函数，直接把函数指针用宏 setfvalue 压入堆栈即可。
