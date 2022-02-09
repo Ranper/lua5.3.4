@@ -531,6 +531,7 @@ LUA_API const char *lua_pushfstring (lua_State *L, const char *fmt, ...) {
 // 除了第一个参数,c函数的其他参数都在栈上
 // 构造c函数闭包,然后将其入栈
 // add common in windows.
+// another common in windows.
 LUA_API void lua_pushcclosure (lua_State *L, lua_CFunction fn, int n) {
   lua_lock(L);
   if (n == 0) {  // 对于轻量 C 函数，直接把函数指针用宏 setfvalue 压入堆栈即可。
