@@ -423,7 +423,7 @@ typedef struct Proto {
   int sizelocvars;
   int linedefined;  /* debug information  */
   int lastlinedefined;  /* debug information  */  // 调试信息
-  TValue *k;  /* constants used by the function  函数使用的常量*/
+  TValue *k;  /* constants used by the function  函数使用的常量*/ // 绑定这个函数用到的所有常量
   Instruction *code;  /* opcodes */
   struct Proto **p;  /* functions defined inside the function */  // proto是有层级的, 定义在其他函数中的函数 对内层proto的引用
   int *lineinfo;  /* map from opcodes to source lines (debug information) */  // 从操作码映射到源代码行（调试信息）

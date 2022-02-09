@@ -159,8 +159,13 @@ typedef LUAI_UACINT l_uacInt;
 ** type for virtual-machine instructions;
 ** must be an unsigned with (at least) 4 bytes (see details in lopcodes.h)
 */
+/**
+ * 32位指令码 按照 6 8 9 9 分配,其中6代表操作码,8代表影响的对象,用A表示,通常是一个寄存器的索引,也可能是对upvalue的操作.
+ * 低18位表示作用到A的参数,可以进一步将其分为两个B和C,也可以合并为一个Bx,或者是有符号的sBx
+ * 特殊情况下,也存在 6 26 分配,其中26用Ax表示.
+ */
 #if LUAI_BITSINT >= 32
-typedef unsigned int Instruction;
+typedef unsigned int Instruction;   // lua 中的每条指令都由一个 32 位无符号整数表示，指令种类和操作对象都被编码进这个数字。
 #else
 typedef unsigned long Instruction;
 #endif
