@@ -70,7 +70,7 @@ l_noret luaM_toobig (lua_State *L) {
 }
 
 
-
+//estimate 和 totalbytes 两个域，从名字上可以知道，它们分别表示了 lua vm 占用的内存字节数以及实际分配的字节数。
 /*
 ** generic allocation routine.
 */
@@ -95,7 +95,7 @@ void *luaM_realloc_ (lua_State *L, void *block, size_t osize, size_t nsize) {
       luaD_throw(L, LUA_ERRMEM);
   }
   lua_assert((nsize == 0) == (newblock == NULL));
-  g->GCdebt = (g->GCdebt + nsize) - realosize;
+  g->GCdebt = (g->GCdebt + nsize) - realosize;  // 更新 GCdebt, 表示需要回收的内存
   return newblock;
 }
 

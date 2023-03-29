@@ -64,6 +64,7 @@
 /*
 ** standard implementation for 'gettable'
 */
+// 对表结构读操作的封装
 #define luaV_gettable(L,t,k,v) { const TValue *slot; \
   if (luaV_fastget(L,t,k,slot,luaH_get)) { setobj2s(L, v, slot); } \
   else luaV_finishget(L,t,k,v,slot); }

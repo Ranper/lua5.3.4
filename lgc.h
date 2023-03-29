@@ -22,6 +22,8 @@
 ** allweak, ephemeron) so that it can be visited again before finishing
 ** the collection cycle. These lists have no meaning when the invariant
 ** is not being enforced (e.g., sweep phase).
+
+当不强制执行不变量时（例如，扫描阶段），这些列表没有意义。
 */
 
 
@@ -78,7 +80,7 @@
 #define WHITE0BIT	0  /* object is white (type 0) */
 #define WHITE1BIT	1  /* object is white (type 1) */
 #define BLACKBIT	2  /* object is black */
-#define FINALIZEDBIT	3  /* object has been marked for finalization */
+#define FINALIZEDBIT	3  /* object has been marked for finalization  终结，结束，终止化 */
 /* bit 7 is currently used by tests (luaL_checkmemory) */
 
 #define WHITEBITS	bit2mask(WHITE0BIT, WHITE1BIT)
@@ -86,7 +88,7 @@
 
 #define iswhite(x)      testbits((x)->marked, WHITEBITS)
 #define isblack(x)      testbit((x)->marked, BLACKBIT)
-#define isgray(x)  /* neither white nor black */  \
+#define isgray(x)  /* neither white nor black 既不白也不黑 */  \
 	(!testbits((x)->marked, WHITEBITS | bitmask(BLACKBIT)))
 
 #define tofinalize(x)	testbit((x)->marked, FINALIZEDBIT)
@@ -106,6 +108,10 @@
 ** allows some adjustments to be done only when needed. macro
 ** 'condchangemem' is used only for heavy tests (forcing a full
 ** GC cycle on every opportunity)
+218 / 5,000
+翻译结果
+当债务变为正数时进行一步收款。 'pre'/'pos' 允许仅在需要时进行一些调整。 
+宏 'condchangemem' 仅用于繁重的测试（在每个机会上强制执行完整的 GC 循环） 
 */
 #define luaC_condGC(L,pre,pos) \
 	{ if (G(L)->GCdebt > 0) { pre; luaC_step(L); pos;}; \

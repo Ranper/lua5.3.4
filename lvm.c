@@ -788,17 +788,18 @@ void luaV_execute (lua_State *L) {
   LClosure *cl;
   TValue *k;
   StkId base;
-  ci->callstatus |= CIST_FRESH;  /* fresh invocation of 'luaV_execute" */
- newframe:  /* reentry point when frame changes (call/return) */
+  ci->callstatus |= CIST_FRESH;  /* fresh invocation of 'luaV_execute" */ // 重新调用“luaV_execute”
+ newframe:  /* reentry point when frame changes (call/return) */  // 当lua函数调用lua函数的时候,直接goto跳转到这里,刷新栈信息
   lua_assert(ci == L->ci);
-  cl = clLvalue(ci->func);  /* local reference to function's closure */
-  k = cl->p->k;  /* local reference to function's constant table */
-  base = ci->u.l.base;  /* local copy of function's base */
+  // cl 变量中放置调用栈中当前函数对象，k 是这个函数的指令序列，base 是当 前数据栈底的位置。
+  cl = clLvalue(ci->func);  /* local reference to function's closure */ // 函数闭包的局部引用 // 这三步是刷新栈信息
+  k = cl->p->k;  /* local reference to function's constant table */  // 函数常量表的局部引用
+  base = ci->u.l.base;  /* local copy of function's base */  // 函数基栈的局部值
   /* main loop of interpreter */
   for (;;) {
     Instruction i;
     StkId ra;
-    vmfetch();
+    vmfetch();  // 获取一条指令并且准备执行
     vmdispatch (GET_OPCODE(i)) {
       vmcase(OP_MOVE) {
         setobjs2s(L, ra, RB(i));

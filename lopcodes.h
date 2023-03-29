@@ -44,8 +44,8 @@ enum OpMode {iABC, iABx, iAsBx, iAx};  /* basic instruction format */
 #define SIZE_OP		6
 
 #define POS_OP		0
-#define POS_A		(POS_OP + SIZE_OP)
-#define POS_C		(POS_A + SIZE_A)
+#define POS_A		(POS_OP + SIZE_OP) // 参数A右边有多少个参数  
+#define POS_C		(POS_A + SIZE_A)  
 #define POS_B		(POS_C + SIZE_C)
 #define POS_Bx		POS_C
 #define POS_Ax		POS_A
@@ -76,7 +76,7 @@ enum OpMode {iABC, iABx, iAsBx, iAx};  /* basic instruction format */
 #define MAXARG_C        ((1<<SIZE_C)-1)
 
 
-/* creates a mask with 'n' 1 bits at position 'p' */
+/* creates a mask with 'n' 1 bits at position 'p' */  //在位置p+1,p+2,p+n-1位置上设置为1
 #define MASK1(n,p)	((~((~(Instruction)0)<<(n)))<<(p))
 
 /* creates a mask with 'n' 0 bits at position 'p' */
@@ -90,11 +90,11 @@ enum OpMode {iABC, iABx, iAsBx, iAx};  /* basic instruction format */
 #define SET_OPCODE(i,o)	((i) = (((i)&MASK0(SIZE_OP,POS_OP)) | \
 		((cast(Instruction, o)<<POS_OP)&MASK1(SIZE_OP,POS_OP))))
 
-#define getarg(i,pos,size)	(cast(int, ((i)>>pos) & MASK1(size,0)))
+#define getarg(i,pos,size)	(cast(int, ((i)>>pos) & MASK1(size,0)))  // 从低到高是6 8 9 9 ,通过pos,移除要获取参数右边的值,通过size,将要获取参数左边的值过滤掉,就得到了要获取的值 妙
 #define setarg(i,v,pos,size)	((i) = (((i)&MASK0(size,pos)) | \
                 ((cast(Instruction, v)<<pos)&MASK1(size,pos))))
 
-#define GETARG_A(i)	getarg(i, POS_A, SIZE_A)
+#define GETARG_A(i)	getarg(i, POS_A, SIZE_A)  // 
 #define SETARG_A(i,v)	setarg(i, v, POS_A, SIZE_A)
 
 #define GETARG_B(i)	getarg(i, POS_B, SIZE_B)
@@ -154,9 +154,9 @@ enum OpMode {iABC, iABx, iAsBx, iAx};  /* basic instruction format */
 
 
 /*
-** R(x) - register
-** Kst(x) - constant (in constant table)
-** RK(x) == if ISK(x) then Kst(INDEXK(x)) else R(x)
+** R(x) - register  // 在寄存器中
+** Kst(x) - constant (in constant table)  // 在常量表中
+** RK(x) == if ISK(x) then Kst(INDEXK(x)) else R(x)   // 可能在寄存器中也可能在常量表中,由参数的高位决定是哪种
 */
 
 

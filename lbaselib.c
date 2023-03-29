@@ -209,7 +209,7 @@ static int luaB_type (lua_State *L) {
 static int pairsmeta (lua_State *L, const char *method, int iszero,
                       lua_CFunction iter) {
   luaL_checkany(L, 1);
-  if (luaL_getmetafield(L, 1, method) == LUA_TNIL) {  /* no metamethod? */
+  if (luaL_getmetafield(L, 1, method) == LUA_TNIL) {  /* no metamethod? */ //将索引 参数table 处对象的元表中 __pairs 域的值压栈
     lua_pushcfunction(L, iter);  /* will return generator, */
     lua_pushvalue(L, 1);  /* state, */
     if (iszero) lua_pushinteger(L, 0);  /* and initial value */
@@ -243,10 +243,12 @@ static int luaB_pairs (lua_State *L) {
 /*
 ** Traversal function for 'ipairs'
 */
+// 无论何时 Lua 调用 C，被调用的函数都得到一个新的栈，这个栈独立于 C 函数本身的栈，也独立于之前的 Lua 栈
+// 可以看出, 栈上第一个元素是个table, 第二个元素是个索引 idx.
 static int ipairsaux (lua_State *L) {
-  lua_Integer i = luaL_checkinteger(L, 2) + 1;
-  lua_pushinteger(L, i);
-  return (lua_geti(L, 1, i) == LUA_TNIL) ? 1 : 2;
+  lua_Integer i = luaL_checkinteger(L, 2) + 1; // 检查函数的第 arg 个参数是否是一个 整数（或是可以被转换为一个整数） 并以 lua_Integer 类型返回这个整数值(这里好像是开了个新的栈,对,每次发生一次函数调用,都会切换栈指针)
+  lua_pushinteger(L, i);  // 将一个新的索引入栈
+  return (lua_geti(L, 1, i) == LUA_TNIL) ? 1 : 2;  // 把 t[i] 的值压栈， 这里的 t 指给定的索引指代的值
 }
 
 
@@ -258,10 +260,10 @@ static int luaB_ipairs (lua_State *L) {
 #if defined(LUA_COMPAT_IPAIRS)
   return pairsmeta(L, "__ipairs", 1, ipairsaux);
 #else
-  luaL_checkany(L, 1);
-  lua_pushcfunction(L, ipairsaux);  /* iteration function */
-  lua_pushvalue(L, 1);  /* state */
-  lua_pushinteger(L, 0);  /* initial value */
+  luaL_checkany(L, 1);  // 确保栈上是有一个值的,也就是ipairs()函数必需要有参数,否则就会报错 value expected
+  lua_pushcfunction(L, ipairsaux);  /* iteration function */  // 压入迭代函数
+  lua_pushvalue(L, 1);  /* state */  // ipairsaux 函数栈上的第一个值 把栈上给定索引处的元素作一个副本压栈。 将 传过来的参数复制后再次入栈,也就是table入栈
+  lua_pushinteger(L, 0);  /* initial value */ //pairsaux 函数栈上的第2个值 表示上次访问的元素idx 初始值为0,下一个值是1,所以真的遍历是从1开始
   return 3;
 #endif
 }
@@ -486,7 +488,7 @@ static const luaL_Reg base_funcs[] = {
 LUAMOD_API int luaopen_base (lua_State *L) {
   /* open lib into global table */
   lua_pushglobaltable(L);
-  luaL_setfuncs(L, base_funcs, 0);
+  luaL_setfuncs(L, base_funcs, 0);  // 把数组 base_funcs 中的所有函数 （参见 luaL_Reg） 注册到栈顶的表中
   /* set global _G */
   lua_pushvalue(L, -1);
   lua_setfield(L, -2, "_G");

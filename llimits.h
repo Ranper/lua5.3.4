@@ -45,7 +45,7 @@ typedef unsigned char lu_byte;
 
 #define MAX_LUMEM	((lu_mem)(~(lu_mem)0))
 
-#define MAX_LMEM	((l_mem)(MAX_LUMEM >> 1))
+#define MAX_LMEM	((l_mem)(MAX_LUMEM >> 1)) 
 
 
 #define MAX_INT		INT_MAX  /* maximum value of an int */

@@ -561,7 +561,7 @@
 #if defined(LLONG_MAX)		/* { */
 /* use ISO C99 stuff */
 
-#define LUA_INTEGER		long long
+#define LUA_INTEGER		long long  // 原生的整数
 #define LUA_INTEGER_FRMLEN	"ll"
 
 #define LUA_MAXINTEGER		LLONG_MAX

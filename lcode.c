@@ -425,6 +425,7 @@ static void freeexps (FuncState *fs, expdesc *e1, expdesc *e2) {
 ** as keys (nil cannot be a key, integer keys can collapse with float
 ** keys), the caller must provide a useful 'key' for indexing the cache.
 */
+// 新增一个key,key已存在,对比key对应的值和要插入的value是不是一致,如果一致,就不进行插入了
 static int addk (FuncState *fs, TValue *key, TValue *v) {
   lua_State *L = fs->ls->L;
   Proto *f = fs->f;

@@ -15,15 +15,40 @@
 
 
 /*
+先说下 gc 状态机
+
+状态	分步	工作
+GCSpause	不分步	开启新一轮 gc，遍历 rootgc 开始 mark（标记），table/proto/closure/thread 对象标记为 gray，加入 g->gray 链表，string/userdata 对象标记为黑色。遍历完成后，切换到 GCSpropagate
+GCSpropagate	分步	每次从 g->gray 链表取出一个对象，先标记为 black。如果对象是弱表或 thread，则加入 g->grayagain 链表，然后遍历这个对象的子项开始 mark，把没有标记的对象都标记了。当 g->gray 链表为空，切换到 GCSatoimic
+GCSatoimic	不分步	再次遍历 rootgc 开始 mark，对 GCSpropagate 期间可能的改变再重新标记，将未标记的对象加入 g->gray 链表。遍历 g->gray 链表取所有对象完成标记。遍历 g->grayagain 链表取所有对象完成标记，遍历弱表，将白色的项置为nil。遍历 g->finobj 链表，把白色的对象移到 g->tobefnz 链表。遍历 g->tobefnz 链表，完成 mark。切换当前白色到另一种白色。切换到 GCSswpallgc
+GCSswpallgc	分步	每次取 g->allgc 链表一定数量的对象, 将还是上一种白色的对象清理掉。同时将黑色对象标记为当前白色。当 g->allgc遍历完成，切换到 GCSswpfinobj
+GCSswpfinobj	分步	同上处理 g->finobj 链表。切换到 GCSswptobefnz
+GCSswptobefnz	分步	同上处理 g->tobefnz 链表。切换到 GCSswpend
+GCSswpend	不分步	收缩全局 string 的hash表，保证hash桶利用率超过 1/4， 切换到 GCScallfin
+GCScallfin	分步	每次取 g->tobefnz 链表一定数量的对象，将对象标记为白色，加入 g->allgc 链表 。 执行对象的 __gc meta函数。当 g->tobefnz 为空时，切换到 GCSpause
+再重点说下以上提到的几个变量：
+g->allgc: 所有可回收的对象链表。
+g->finobj: 带 __gc meta函数的对象链表。
+g->tobefnz: 没有引用的带 __gc meta函数的对象链表。
+新建对象时，对象会加入 g->allgc 链表，当对象设置 __gc meta函数时，这个对象会从 g->allgc 移到 g->finobj 链表，当这个对象不再引用后，从 g->finobj 移到 g->tobefnz，执行 __gc meta函数后，对象再移回到 g->allgc，等下一次 gc 清理。
+
+g->gray: 等待遍历的对象链表
+g->grayagain: 等待 g->gray 为空后，再遍历的对象链表
+g->grayagain 的用途：
+1. GCSpropagate 阶段的弱表。要扫描完所有对象后，才可以对弱表进行处理。
+2. 黑色 table 引用白色对象时。如果又加入 g->gray，会导致 table 又被反复扫描
+3. 协程。要等协程栈中对象都处理完，才可以对协程进行处理。*/
+
+/*
 
 ** Some notes about garbage-collected objects: All objects in Lua must
 ** be kept somehow accessible until being freed, so all objects always
 ** belong to one (and only one) of these lists, using field 'next' of
 ** the 'CommonHeader' for the link:
 **
-** 'allgc': all objects not marked for finalization;
-** 'finobj': all objects marked for finalization;
-** 'tobefnz': all objects ready to be finalized;
+** 'allgc': all objects not marked for finalization; 不需要终结器的obj
+** 'finobj': all objects marked for finalization;    需要终结器的obj
+** 'tobefnz': all objects ready to be finalized;  已经做好to be finalization的obj
 ** 'fixedgc': all objects that are not to be collected (currently
 ** only small strings, such as reserved words).
 **
@@ -41,10 +66,13 @@
 **   - all kinds of weak tables during propagation phase;
 **   - all threads.
 ** 'weak': tables with weak values to be cleared;
-** 'ephemeron': ephemeron tables with white->white entries;
+** 'ephemeron': ephemeron tables with white->white entries;   ephemeron 声明极短暂的
 ** 'allweak': tables with weak keys and/or weak values to be cleared.
 ** The last three lists are used only during the atomic phase.
 
+此外，还有另一组控制灰色对象的列表。这些列表由“gclist”字段链接。 
+（所有可以变成灰色的对象都有这样一个字段，这个字段在所有对象中不一样，但它总是有一个名字。）
+任何灰色对象都必须属于这些列表之一，并且这些列表中的所有对象都必须是灰色的 :
 */
 
 
@@ -89,14 +117,19 @@ typedef struct stringtable {
 ** the function index so that, in case of errors, the continuation
 ** function can be called with the correct top.
 */
+/**
+ * 有关调用的信息。当一个线程产生时，“func”被调整为假装顶部函数在其堆栈中只有产生的值；
+ *  在这种情况下，实际的“func”值保存在字段“extra”中。 当一个函数调用另一个带有延续的函数时，
+ * 'extra' 会保留函数索引，以便在出现错误时，可以使用正确的顶部调用延续函数。
+*/
 typedef struct CallInfo {
   StkId func;  /* function index in the stack */
   StkId	top;  /* top for this function */
   struct CallInfo *previous, *next;  /* dynamic call link */
   union {
     struct {  /* only for Lua functions */
-      StkId base;  /* base for this function */
-      const Instruction *savedpc;
+      StkId base;  /* base for this function */  // 当前函数的函数栈指针.
+      const Instruction *savedpc;  // 保存指向当前指令的指针,
     } l;
     struct {  /* only for C functions */
       lua_KFunction k;  /* continuation in case of yields */
@@ -139,8 +172,8 @@ typedef struct global_State {
   lua_Alloc frealloc;  /* function to reallocate memory */    // 内存管理函数, 不仅仅是分配新的内存，释放不用的内存，扩展不够用 的内存。Lua 也会通过 realloc 试图释放掉预申请过大的内存的后半部分. 这就是为什么使用realloc,不使用alloc
   void *ud;         /* auxiliary data to 'frealloc' */  // 额外指针ud,可以让内存管理模块工作在不同的堆上
   l_mem totalbytes;  /* number of bytes currently allocated - GCdebt */  // 当前分配的字节数-GC 借款
-  l_mem GCdebt;  /* bytes allocated not yet compensated by the collector */  // 收集器尚未补偿分配的字节 ??
-  lu_mem GCmemtrav;  /* memory traversed by the GC */            // GC遍历的内存
+  l_mem GCdebt;  /* bytes allocated not yet compensated by the collector */  // 收集器尚未补偿分配的字节 ?? 已分配,未补偿
+  lu_mem GCmemtrav;  /* memory traversed by the GC */            // GC遍历的内存,已经遍历了多少内存.
   lu_mem GCestimate;  /* an estimate of the non-garbage memory in use */  // 对正在使用的非垃圾内存的估计
   stringtable strt;  /* hash table for strings */    // 字符串哈希表 string table 短字符串都存放在这个hash表中
   TValue l_registry;
@@ -153,7 +186,7 @@ typedef struct global_State {
   GCObject **sweepgc;  /* current position of sweep in list */  // 扫描列表的当前位置
   GCObject *finobj;  /* list of collectable objects with finalizers */  // 带有终结器的可收集对象列表  finalizers应该类似于析构函数
   GCObject *gray;  /* list of gray objects */                            // 灰色对象列表
-  GCObject *grayagain;  /* list of objects to be traversed atomically */  // 要以原子方式遍历的对象列表
+  GCObject *grayagain;  /* list of objects to be traversed atomically */  // 要以原子方式遍历的对象列表 对 一个扫描完的 table 进行修改操作，会默认将 table 改为 灰色，且加入到 grayagain
   GCObject *weak;  /* list of tables with weak values */  // 弱引用的table 列表
   GCObject *ephemeron;  /* list of ephemeron tables (weak keys) */  // 弱键
   GCObject *allweak;  /* list of all-weak tables */   // 所有的弱键列表
@@ -188,7 +221,7 @@ struct lua_State {
   StkId stack_last;  /* last free slot in the stack */
   StkId stack;  /* stack base */  
   UpVal *openupval;  /* list of open upvalues in this stack */  // 这个栈中开放的上值,以单项链表的形式串接起来
-  GCObject *gclist;
+  GCObject *gclist;  //可以理解为gc next  由于gc list每次添加对象都是从头部添加的,
   struct lua_State *twups;  /* list of threads with open upvalues */  // 拥有open value的线程列表 
   struct lua_longjmp *errorJmp;  /* current error recover point */  // 
   CallInfo base_ci;  /* CallInfo for first level (C calling Lua) */  // c调用lua的调用信息
@@ -242,6 +275,7 @@ union GCUnion {
 
 
 /* actual number of total bytes allocated */
+// 实际分配的内存数
 #define gettotalbytes(g)	cast(lu_mem, (g)->totalbytes + (g)->GCdebt)
 
 LUAI_FUNC void luaE_setdebt (global_State *g, l_mem debt);

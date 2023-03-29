@@ -20,6 +20,7 @@
 ** Extra tags for non-values
 */
 #define LUA_TPROTO	LUA_NUMTAGS		/* function prototypes */
+/* 标识这是一个dead key */
 #define LUA_TDEADKEY	(LUA_NUMTAGS+1)		/* removed keys in tables */
 
 /*
@@ -195,7 +196,7 @@ typedef struct lua_TValue {
 
 /* Macros to set values */
 #define settt_(o,t)	((o)->tt_=(t))
-
+// 把第二个参数设置为第三个参数
 #define setfltvalue(obj,x) \
   { TValue *io=(obj); val_(io).n=(x); settt_(io, LUA_TNUMFLT); }
 

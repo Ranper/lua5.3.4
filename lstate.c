@@ -33,7 +33,7 @@
 #endif
 
 #if !defined(LUAI_GCMUL)
-#define LUAI_GCMUL	200 /* GC runs 'twice the speed' of memory allocation */
+#define LUAI_GCMUL	200 /* GC runs 'twice the speed' of memory allocation GC的运行速度是内存分配速度的两倍 */
 #endif
 
 
@@ -102,7 +102,7 @@ void luaE_setdebt (global_State *g, l_mem debt) {
   lua_assert(tb > 0);
   if (debt < tb - MAX_LMEM)
     debt = tb - MAX_LMEM;  /* will make 'totalbytes == MAX_LMEM' */
-  g->totalbytes = tb - debt;
+  g->totalbytes = tb - debt;  //除了初始化,只有这里更改了tb
   g->GCdebt = debt;
 }
 

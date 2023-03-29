@@ -1012,7 +1012,7 @@ static void addlenmod (char *form, const char *lenmod) {
   form[l + lm] = '\0';
 }
 
-
+// string.format 的实际调用
 static int str_format (lua_State *L) {
   int top = lua_gettop(L);
   int arg = 1;

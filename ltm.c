@@ -66,7 +66,8 @@ const TValue *luaT_gettm (Table *events, TMS event, TString *ename) {
   else return tm;
 }
 
-
+/* 获取目标的meta table */
+/* meta table 是用 table实现的, key 是 TMS 结构中的一个, value是(函数)或者table */
 const TValue *luaT_gettmbyobj (lua_State *L, const TValue *o, TMS event) {
   Table *mt;
   switch (ttnov(o)) {
